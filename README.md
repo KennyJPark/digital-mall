@@ -1,2 +1,2 @@
 # digital-mall
-2D game made in Unity with C#
+Source Code for 2D game made in Unity with C#

@@ -3,17 +3,30 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using System;
+
+using Random = UnityEngine.Random;
 
 public class StoreController : MonoBehaviour
 {
     public static StoreController instance { get; private set; }
 
+    public event Action StoreOpened;
+    public event Action StoreSessionEnded;
+    public event Action StoreClosed;
+
+    public GameObject balanceSheet;
+
     public CashRegister cashRegister;
 
     public PlayerController player;
 
-    public static bool storeOpen;
+    [SerializeField]
+    bool isTest;
+    //public static bool storeOpen;
+    static bool storeOpen;
     public bool transactionInProgress;
+    bool didBalanceSheetClose;
     public static int numPatrons;
 
     public GameObject storeDialog;
@@ -21,20 +34,32 @@ public class StoreController : MonoBehaviour
     public GameObject patronQueueObj;
     public GameObject currentPatronObj;
 
+    [SerializeField]
+    GameObject generalBackgroundMusic;
+    [SerializeField]
+    GameObject openStoreMusic;
+
     public PatronGenerator patronGenerator;
 
     public GameObject itemSaleControllerObj;
     public ItemSaleController itemSaleController;
+    public GameObject saleWindow;
+
 
     public GameObject priceInputPanel;
 
     PatronQueue patronQueue;
     Patron currentPatron;
 
+    public GameObject patronResponse;
+
     public GameObject storeDisplayController;
     public StoreDisplayCollection storeDisplayCollection;
     //public List<GameObject> storeDisplayList;
     public List<ItemForSale> itemForSaleList;
+
+    public GameObject storeLogObj;
+    public StoreLog storeLog;
 
     int timeBetweenSales;
 
@@ -48,12 +73,21 @@ public class StoreController : MonoBehaviour
 
     void Start()
     {
+
         cancellationTokenSource = new CancellationTokenSource();
     }
 
     void Awake()
     {
-        instance = this;
+        if (instance == null)
+        {
+            instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+
         storeOpen = false;
         //storeDialog.SetActive(false);
         patronQueue = patronQueueObj.GetComponent<PatronQueue>();
@@ -61,11 +95,33 @@ public class StoreController : MonoBehaviour
         {
             itemSaleController = itemSaleControllerObj.GetComponent<ItemSaleController>();
         }
-        if(!storeOpen)
+        if(saleWindow == null)
         {
-            //priceInputPanel.SetActive(false);
-            itemSaleControllerObj.SetActive(false);
+            saleWindow = itemSaleControllerObj.transform.GetChild(0).gameObject;
         }
+        if(patronResponse == null)
+        {
+            Debug.Log("patronResponse == null");
+            
+        }
+        if(storeLog == null)
+        {
+            Debug.Log("storeLog == null");
+            
+        }
+        if(balanceSheet == null)
+        {
+            Debug.Log("balanceSheet == null");
+        }
+        //balanceSheet.GetComponent<BalanceSheetView>().BalanceSheetClosed += (async () => await OnBalanceSheetClosedAsync());
+        balanceSheet.GetComponent<BalanceSheetView>().BalanceSheetClosed += OnBalanceSheetClosedListener;
+        if (!storeOpen)
+        {
+            priceInputPanel.SetActive(false);
+            //itemSaleControllerObj.SetActive(false);
+            itemSaleController.DeactivateItemSaleController();
+        }
+        //DontDestroyOnLoad(this.gameObject);
     }
 
     public void ArrangeStore()
@@ -75,14 +131,64 @@ public class StoreController : MonoBehaviour
 
     }
 
+
+    void OnDisable()
+    {
+        //Patron.OnRequestOffer -= DisplayOfferPage;
+        Patron.OnRequestOffer -= DisplayOfferPageAsync;
+        if (balanceSheet != null)
+        {
+            //balanceSheet.GetComponent<BalanceSheetView>().BalanceSheetClosed -= (async () => await OnBalanceSheetClosedListener());
+            balanceSheet.GetComponent<BalanceSheetView>().BalanceSheetClosed -= OnBalanceSheetClosedListener;
+        }
+
+        cancellationTokenSource.Cancel();
+    }
+
+    void OnEnable()
+    {
+        //Patron.OnRequestOffer += DisplayOfferPage;
+        Patron.OnRequestOffer += DisplayOfferPageAsync;
+    }
+
+
+    void OnBalanceSheetClosedListener()
+    {
+        if(!didBalanceSheetClose)
+            didBalanceSheetClose = true;
+
+    }
+
+    async Task OnBalanceSheetClosedAsync(CancellationToken cancellationToken)
+    {
+        Debug.Log("HERE");
+        
+        while(!didBalanceSheetClose)
+        {
+            await Task.Delay(1, cancellationToken);
+        }
+        return;
+    }
+
+    //async Task CloseStore()
     void CloseStore()
     {
         Debug.Log("Closing Store");
+        // Log sale stats
+        // Destroy patrons
+
+        //StoreClosed.Invoke();
         PlayerController.isFrozen = false;
         storeOpen = false;
+        Debug.Log("END CLOSE STORE");
     }
     
-
+    async Task ReviewCompletedStoreSessionAsync(CancellationToken cancellationToken)
+    {
+        StoreSessionEnded.Invoke();
+        var balanceSheetClosedTask = OnBalanceSheetClosedAsync(cancellationToken);
+        await balanceSheetClosedTask;
+    }
 
     //void DisplayOfferPage(Patron p)
     // async void DisplayOfferPageAsync(Patron p)
@@ -107,7 +213,9 @@ public class StoreController : MonoBehaviour
             yield return null;
         }
 
-        itemSaleControllerObj.SetActive(false);
+        //itemSaleControllerObj.SetActive(false);
+
+
         currentPatron.offerReceived = true;
         yield return null;
         Debug.Log("End DisplayOfferPage");
@@ -115,24 +223,28 @@ public class StoreController : MonoBehaviour
         
 
     ///*
-    async Task DisplayOfferPageAsync(Patron p, CancellationToken cancellationToken)
+    async Task<int> DisplayOfferPageAsync(Patron p, CancellationToken cancellationToken)
     {
         bool offerMade = false;
+        priceInputPanel.SetActive(true);
         Debug.Log("Displaying offer page ASYNC");
-
+        if (!itemSaleControllerObj.activeInHierarchy)
+        {
+            itemSaleController.ActivateItemSaleController();
+        }
         itemSaleController.SetUpSalePage(p);
 
         //while (!offerMade)
         while (!itemSaleController.offerSubmitted)
         {
-            Debug.Log("offer not yet submitted ASYNC");
             await Task.Delay(1, cancellationToken);
         }
-
-        itemSaleControllerObj.SetActive(false);
+        itemSaleController.CloseSaleWindow();
         currentPatron.offerReceived = true;
         
         Debug.Log("End DisplayOfferPage");
+        Debug.Log("Item Offer: " + itemSaleController.GetItemOffer());
+        return itemSaleController.GetItemOffer();
     }
     //*/
 
@@ -143,10 +255,8 @@ public class StoreController : MonoBehaviour
         if (patronQueue.GetComponent<PatronQueue>().patronCount > 0)
         {
             currentPatronObj = patronQueue.GetComponent<PatronQueue>().NextPatron();
-            //Debug.Log("1");
 
             currentPatron = currentPatronObj.GetComponent<Patron>();
-            //Debug.Log("2");
             return true;
         }
         else
@@ -155,29 +265,37 @@ public class StoreController : MonoBehaviour
         }
     }
 
-    void OnDisable()
+    public bool IsStoreOpen()
     {
-        //Patron.OnRequestOffer -= DisplayOfferPage;
-        Patron.OnRequestOffer -= DisplayOfferPageAsync;
-        cancellationTokenSource.Cancel();
-    }
-    
-    void OnEnable()
-    {
-        //Patron.OnRequestOffer += DisplayOfferPage;
-        Patron.OnRequestOffer += DisplayOfferPageAsync;
+        return storeOpen;
     }
 
+
+    void SwitchMusic()
+    {
+        if(generalBackgroundMusic.activeInHierarchy)
+        {
+            generalBackgroundMusic.SetActive(false);
+            openStoreMusic.SetActive(true);
+        }
+        else
+        {
+            openStoreMusic.SetActive(false);
+            generalBackgroundMusic.SetActive(true);
+        }
+
+    }
     
-    public async Task OpenStore()
-    //public IEnumerator OpenStore()
-    //public void OpenStore()
+    public async Task OpenStoreAsync()
     {
         var cancellationToken = cancellationTokenSource.Token;
 
-        Debug.Log("OpenStore()");
+        Debug.Log("OpenStore() async");
+        didBalanceSheetClose = false;
+        Debug.Log("DABU");
+        StoreOpened.Invoke();
         // Subscribe to event
-        
+        Debug.Log("YOSH");
 
         storeDisplayCollection.CompileCollection();
         Debug.Log("Count: " + storeDisplayCollection.storeCollection.Count);
@@ -186,28 +304,33 @@ public class StoreController : MonoBehaviour
         {
             //player.StopPlayer();
             Debug.Log("Opening Store..");
-            storeDisplayCollection.CompileCollection();
+            //SwitchMusic();
+
+            //storeDisplayCollection.CompileCollection();
             //storeDisplayList
             itemForSaleList = storeDisplayController.GetComponent<StoreDisplayController>().itemForSaleList;
-            numPatrons = 1;
-            //numPatrons = Random.Range(1, 6);
-            //StartCoroutine(patronGenerator.GeneratePatrons(numPatrons));
+            if(isTest)
+            {
+                numPatrons = 2;
+            }
+            else
+            {
+                numPatrons = Random.Range(1, 6);
+                
+            }
+
             patronGenerator.GeneratePatrons(numPatrons);
+            //StartCoroutine(patronGenerator.GeneratePatrons(numPatrons));
             if (storeDisplayCollection != null)
             {
                 storeDisplayCollection.CompileCollection();
                 //storeDisplayCollection.PrintCollection();
             }
             ///*
-            Debug.Log("numPatrons" + numPatrons);
+            Debug.Log("numPatrons " + numPatrons);
             storeOpen = true;
-            //Debug.Log("Start couroutine");
-
-            //yield return StartCoroutine(ProcessPatrons());
             var processPatronTask = ProcessPatronsAsync(cancellationToken);
             await processPatronTask;
-            //StartCoroutine(ProcessPatrons());
-            //ProcessPatrons();
 
             /*
             while(numPatrons > 0)
@@ -229,9 +352,14 @@ public class StoreController : MonoBehaviour
             // Nothing for sale
         }
 
+        var ReviewCompletedStoreSessionTask = ReviewCompletedStoreSessionAsync(cancellationToken);
+        await ReviewCompletedStoreSessionTask;
+
 
         CloseStore();
-        Debug.Log("EXIT");
+        
+        Debug.Log("END OpenStoreAsync");
+        //SwitchMusic();
         //yield return null;
         //player.ReleasePlayer();
     }
@@ -243,12 +371,13 @@ public class StoreController : MonoBehaviour
     {
         Debug.Log("ProcessPatrons");
         //Debug.Log("numPatrons: " + numPatrons);
-
+        int count = 1;
         while (numPatrons > 0)
         {
             //Debug.Log("while");
             if (GetNextPatron())
             {
+                Debug.Log("Retreiving next patron...");
                 --numPatrons;
 
             }
@@ -262,16 +391,43 @@ public class StoreController : MonoBehaviour
 
             //StartCoroutine(ProcessNextPatron());
             //yield return StartCoroutine(ProcessNextPatron());
-            
+            Debug.Log("### Patron " + count);
             currentPatron.PrintPatron();
-            var processNextPatronTask = ProcessNextPatronAsync(cancellationToken);
-            try
+            if(currentPatron.desiredItemID != -1)
             {
-                await processNextPatronTask;
-            }
-            catch
-            {
+                
+                var processNextPatronTask = ProcessNextPatronAsync(cancellationToken);
+                //var patronResponseTask = patronResponse.GetComponent<PatronResponse>().EndTransactionAsync();
+                try
+                {
+                    
+                    await processNextPatronTask;
+                    
+                    //await ProcessNextPatronAsync(cancellationToken);
+                    //await patronResponseTask;
 
+                    //var completedTransaction = await Task.WhenAll(processNextPatronTask, patronResponseTask);
+                    //await completedTransaction;
+                    //patronResponseTask.Wait();
+                    /*
+                    while(!patronResponse.GetComponent<PatronResponse>().transactionEnded)
+                    {
+                        await Task.Delay(1);
+                    }
+                    */
+                    Debug.Log("StoreController.ProcessPatronsAsync -> Purchase complete");
+
+                    // Destroy current patron? or set inactive
+                    Destroy(currentPatron.gameObject);
+                }
+                catch
+                {
+
+                }
+            }
+            else
+            {
+                Debug.Log("desired item ID = -1; patron wants nothing");
             }
             /*
             while(transactionInProgress)
@@ -279,18 +435,44 @@ public class StoreController : MonoBehaviour
                 yield return null;
             }
             */
-            Debug.Log("StoreController.ProcessPatronsAsync -> Purchase complete");
+            count++;
         }
+
+        Debug.Log("No patrons remaining");
+        Debug.Log("END ProcessPatronsAsync");
     }
 
     async Task ProcessNextPatronAsync(CancellationToken cancellationToken)
     //IEnumerator ProcessNextPatron()
     {
+        Debug.Log("START ProcessNextPatronAsync");
+        //Debug.Log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+        Debug.Log("Patron ID: " + currentPatron.GetID());
         transactionInProgress = true;
+        //Debug.Log("starting attemptPurchaseTask");
         var attemptPurchaseTask = currentPatron.AttemptPurchaseAsync(cancellationToken);
+        //Debug.Log("waiting attemptPurchaseTask");
         await attemptPurchaseTask;
-        //yield return StartCoroutine(currentPatron.AttemptPurchase());
+        //Debug.Log("finished attemptPurchaseTask");
+        
+        ///*
+        while (!patronResponse.GetComponent<PatronResponse>().confirmClicked)
+        {
+            //Debug.Log("WAITING");
+            await Task.Delay(1, cancellationToken);
+            
+        }
+        //*/
         transactionInProgress = false;
+
+        /*
+        while (transactionInProgress)
+        {
+            await Task.Delay(1);
+        }
+        */
+        Debug.Log("End ProcessNextPatronAsync");
+        //Debug.Log("#################################################");
     }
 
 

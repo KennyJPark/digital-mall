@@ -12,16 +12,17 @@ public class StoreDisplayCollection : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        // Subscribe to "Confirm" button from StoreDisplayController
-        StoreDisplayController.OnConfirm += CompileCollection;
+        
 
-        StoreDisplayController.OnUpdate += CompileCollection;
     }
 
     void Awake()
     {
-        //Debug.Log("Collection AWAKE");
+        Debug.Log("Collection AWAKE");
+        Debug.Log("storeDisplayCount = " + storeDisplayCount);
+        Debug.Log("storeCollection.Count = " + storeCollection.Count);
         storeDisplayCount = storeCollection.Count;
+        //StoreDisplay.count = storeCollection.Count;
         /*
         if (!storeCollection.ContainsKey(-1))
         {
@@ -36,7 +37,7 @@ public class StoreDisplayCollection : MonoBehaviour
     // Subscribe to StoreDisplayController event when player updates a store display?
     public void CompileCollection()
     {
-        //Debug.Log("Compiling Collection");
+        Debug.Log("Compiling Collection");
         storeCollection.Clear();
         storeDisplayCount = storeCollection.Count;
         //storeCollection.Add(-1, (null, null));
@@ -46,8 +47,9 @@ public class StoreDisplayCollection : MonoBehaviour
         {
             for (int j = 0; j < this.transform.GetChild(i).childCount; ++j)
             {
-                //Debug.Log("adding item from display #" + i);
+                Debug.Log("adding item from display #" + i);
                 storeCollection.Add(i, (this.transform.GetChild(i).GetComponent<StoreDisplay>(), this.transform.GetChild(i).GetChild(j).GetComponent<ItemForSale>()));
+                Debug.Log("StoreDisplay id# " + this.transform.GetChild(i).GetComponent<StoreDisplay>().GetId());
             }
         }
         storeDisplayCount = storeCollection.Count;
@@ -62,6 +64,11 @@ public class StoreDisplayCollection : MonoBehaviour
         }
         */
         PrintCollection();
+    }
+
+    public void LoadCollection()
+    {
+
     }
 
     public void UpdateDisplay(StoreDisplay sd)
@@ -92,10 +99,19 @@ public class StoreDisplayCollection : MonoBehaviour
     public void PrintCollection()
     {
         Debug.Log("### Store Collection:");
-        Debug.Log(storeCollection.Count + " items");
+        Debug.Log(storeCollection.Count-1 + " items");
         foreach (var kvp in storeCollection)
         {
-            if (kvp.Key != -1 && kvp.Value.Item2.itemID != -1)
+
+            if (kvp.Key != 0 && kvp.Value.Item2.itemID != 0)
+            {
+                Debug.Log("( Index: " + kvp.Key + "," + "Display#: " + kvp.Value.Item1.gameObject.name + ", ItemID: " + kvp.Value.Item2.itemID + ", ItemName: (" + kvp.Value.Item2.itemName + ") ))");
+            }
+            else
+            {
+                Debug.Log("Empty Display (no selection)");
+            }
+            /*if (kvp.Key != -1 && kvp.Value.Item2.itemID != -1)
             {
                 Debug.Log("( Index: " + kvp.Key + "," + "Display#: " + kvp.Value.Item1.gameObject.name + ", ItemID: " + kvp.Value.Item2.itemID + ", ItemName: (" + kvp.Value.Item2.itemName + ") ))");
             }
@@ -103,6 +119,7 @@ public class StoreDisplayCollection : MonoBehaviour
             {
                 Debug.Log("(-1, (null, null))");
             }
+            */
         }
         Debug.Log("###");
     }
@@ -114,7 +131,17 @@ public class StoreDisplayCollection : MonoBehaviour
 
     public ItemForSale GetItemForSale(int index)
     {
+        Debug.Log("returning: " + storeCollection[index].Item2.GetItemName());
         return storeCollection[index].Item2;
+    }
+
+    void OnEnable()
+    {
+        CompileCollection();
+
+        // Subscribe to "Confirm" button from StoreDisplayController
+        StoreDisplayController.OnConfirm += CompileCollection;
+        StoreDisplayController.OnUpdate += CompileCollection;
     }
 
 

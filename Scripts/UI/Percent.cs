@@ -5,7 +5,9 @@ using TMPro;
 
 public class Percent : MonoBehaviour
 {
+    [SerializeField]
     int percent;
+    [SerializeField]
     float percent_float;
 
     void Awake()
@@ -40,14 +42,26 @@ public class Percent : MonoBehaviour
         
         
     }
+
+    public void ResetPercent(int basePrice)
+    {
+        Debug.Log("Percent.ResetPercent");
+        Debug.Log("BASEPRICE: " + basePrice);
+        percent = (int)(100.00 * ((float)basePrice / (float)basePrice));
+        percent_float = (100.00f * ((float)basePrice / (float)basePrice));
+        gameObject.GetComponent<TMP_Text>().text = percent_float.ToString("0.00");
+        gameObject.GetComponent<TMP_Text>().color = new Color32(226, 32, 24, 227);
+    }
     
     void OnEnable()
     {
         DigitField.OnPriceChange += SetPercent;
+        //DigitField.OnPriceReset += ResetPercent;
     }
 
     void OnDisable()
     {
         DigitField.OnPriceChange -= SetPercent;
+        //DigitField.OnPriceReset -= ResetPercent;
     }
 }

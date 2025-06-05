@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class CashRegister : MonoBehaviour
+public class CashRegister : Singleton<CashRegister>, IUsable
 {
+    public static CashRegister instance { get; private set; }
     bool choiceMade;
 
     public GameObject registerDialog;
@@ -29,12 +30,18 @@ public class CashRegister : MonoBehaviour
 
     void Awake()
     {
+        Debug.Log("CASH REGISTER AWAKE");
+        if (instance == null)
+        {
+            instance = this;
+            //DontDestroyOnLoad(gameObject);
+        }
 
         choiceMade = false;
         registerDialog.SetActive(false);
-        organizeStoreButton.onClick.AddListener(OrganizeStore);
-        openStoreButton.onClick.AddListener(PromptStore);
-        cancelButton.onClick.AddListener(CancelMenu);
+        //organizeStoreButton.onClick.AddListener(OrganizeStore);
+        //openStoreButton.onClick.AddListener(PromptStore);
+        //cancelButton.onClick.AddListener(CancelMenu);
         //Debug.Log(this.transform.position);
         //Debug.Log(registerDialog.transform.position);
         //Debug.Log(registerDialog.transform.parent);
@@ -54,16 +61,37 @@ public class CashRegister : MonoBehaviour
         }
     }
 
-    
+
+    public Vector2 Position
+    {
+        get
+        {
+            return transform.position;
+        }
+    }
+
+        /*
+    public void Use(GameObject user)
+    {
+
+    }
+
+    public void Highlight()
+    {
+
+    }
+    */
+
     public IEnumerator InteractWithRegister()
     {
+        Debug.Log("COROUTINE CR");
         choiceMade = false;
         player.StopPlayer();
         registerDialog.SetActive(true);
 
         while (!choiceMade)
         {
-            Debug.Log("choice not yet made");
+            //Debug.Log("choice not yet made");
             yield return null;
         }
         yield return 0;
@@ -72,6 +100,7 @@ public class CashRegister : MonoBehaviour
     // Unused?
     public async Task InteractWithRegisterAsync()
     {
+        Debug.Log("ASYNC CR");
         var cancellationToken = cancellationTokenSource.Token;
 
         choiceMade = false;
@@ -86,7 +115,7 @@ public class CashRegister : MonoBehaviour
 
     }
 
-    private void OrganizeStore()
+    public void OrganizeStore()
     {
         choiceMade = true;
         player.StopPlayer();
@@ -96,8 +125,13 @@ public class CashRegister : MonoBehaviour
         player.ReleasePlayer();
     }
 
-    private void PromptStore()
-    //public IEnumerator PromptStore()
+    public void Swobu()
+    {
+        PromptStore();
+    }
+
+    public async Task PromptStore()
+    //public void PromptStore()
     {
         //var cancellationToken = cancellationTokenSource.Token;
 
@@ -112,12 +146,12 @@ public class CashRegister : MonoBehaviour
 
         //StartCoroutine(StoreController.instance.OpenStore());
 
-        StoreController.instance.OpenStore();
-
-        //player.ReleasePlayer();
+        var openStoreTask = StoreController.instance.OpenStoreAsync();
+        await openStoreTask;
+        Debug.Log("End PromptStore");
     }
 
-    private void CancelMenu()
+    public void CancelMenu()
     {
         Debug.Log(this + "Cancel");
         choiceMade = true;

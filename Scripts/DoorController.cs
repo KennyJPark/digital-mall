@@ -9,46 +9,49 @@ public class DoorController : MonoBehaviour
     static int[] doorTypes;
 
     public int doorType;
+    public string doorDestination;
 
-    public GameObject storeFront;
+    //public GameObject storeFront;
 
     void Awake()
     {
-        if(storeFront == null)
+
+    }
+
+    void Start()
+    {
+
+    }
+
+    void OnEnable()
+    {
+        /*
+        print("DOOR ENABLE");
+        if (storeFront == null)
         {
+            print("Null");
+            print(transform);
+            print(transform.parent);
+            print(transform.parent.gameObject);
             storeFront = transform.parent.gameObject;
         }
+        */
     }
 
     public void RequestChangeScene()
     {
-        Mall.instance.ChangeScene(doorType);
+        Mall.Instance.ChangeScene(doorType);
         //StartCoroutine(LoadDoorAsyncScene());
     }
 
-    /*
-    IEnumerator LoadDoorAsyncScene()
-    {
-        string destinationScene = "";
-        //  If player is using door from their store
-        if (doorType == 0)
-        {
-            destinationScene = "Scenes/MallFloor";
-        }
-        //  If player is using door to their store
-        else if (doorType == 1)
-        {
-            destinationScene = "Scenes/PlayerStore";
-        }
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(destinationScene);
 
-        // Wait until the asynchronous scene fully loads
-        while (!asyncLoad.isDone)
-        {
-            yield return null;
-        }
+    private void OnTriggerEnter2D(Collider2D col)
+    {
+        RequestChangeScene();
     }
-    */
+
+
+    
 
     private void OnDoorwayOpen()
     {

@@ -11,7 +11,7 @@ public enum PatronType
     Child,
 }
 
-public class Patron : MonoBehaviour
+public class Patron : MonoBehaviour, IPurchaseable
 {
     public Patron instance { get; private set; }
 
@@ -28,13 +28,17 @@ public class Patron : MonoBehaviour
     string name;
     public PatronType patronType;
 
+    public GameObject itemSaleControllerObj;
+
     public long budget;
     public int desiredItemIndex;
     public int desiredItemID;
     public ItemForSale desiredItem;
+    // Currently set to Null and unused
+    public StoreDisplay desiredItemStoreDisplay;
 
     public bool offerReceived;
-    public bool includeEmptyItem;
+    //public bool includeEmptyItem;
 
     public string dialogue;
 
@@ -56,38 +60,8 @@ public class Patron : MonoBehaviour
 
     private CancellationTokenSource cancellationTokenSource;
 
-    public async Task AttemptPurchaseAsync(CancellationToken cancellationToken)
-    //public IEnumerator AttemptPurchase()
-    {
-        Debug.Log("AttemptPurchase");
 
-        // item already sold to earlier patron
-        if (desiredItem == null)
-        {
 
-        }
-        else
-        {
-            //Debug.Log("I want " + desiredItem.itemName);
-
-            // Open sale display
-            //yield return StartCoroutine(RequestOffer());
-            var RequestOfferTask = RequestOfferAsync(cancellationToken);
-            await RequestOfferTask;
-            //StartCoroutine(RequestOffer());
-            //RequestOffer();
-
-        }
-
-        /*
-        Debug.Log(gameObject.name);
-        dialogue = "I want to buy this!";
-        ScrollingText scrollingText = gameObject.GetComponentInChildren<ScrollingText>();
-        scrollingText.PrintText(dialogue);
-        */
-        //yield break;
-
-    }
 
     // Start is called before the first frame update
     void Start()
@@ -107,7 +81,10 @@ public class Patron : MonoBehaviour
         //Debug.Log("PATRON AWAKE: " + this.id);
         instance = this;
         this.id = count++;
-        includeEmptyItem = false;
+
+        // CONSIDER DELETING
+        // includeEmptyItem = false; 
+
         gameObject.name = "Patron " + this.id.ToString();
         preferenceID = Random.Range(1, 1);
 
@@ -124,6 +101,11 @@ public class Patron : MonoBehaviour
             storeDisplayCollection = transform.parent.parent.GetComponent<StoreDisplayController>().storeDisplayList;
             //storeDisplayCollection = transform.Find("StoreDisplays");
         }
+
+        if (itemSaleControllerObj == null)
+        {
+            //itemSaleController = 
+        }
         ChooseItem();
 
     }
@@ -138,61 +120,51 @@ public class Patron : MonoBehaviour
         //Debug.Log("Count: " + (storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1).ToString());
 
         Debug.Log("Choosing Random Item..");
-        Debug.Log("-1, " + (storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1));
+        //Debug.Log("-1, " + (storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1));
 
-        if(includeEmptyItem)
-        {
-            desiredItemIndex = Random.Range(-1, storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1);
-        }
-        else
+        desiredItemIndex = Random.Range(1, storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count);
+        
+        /* DELETE IF ABOVE CODE WORKS
+        if (includeEmptyItem)
         {
             desiredItemIndex = Random.Range(0, storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1);
         }
-        
-        if (desiredItemIndex != -1)
-        {
-            desiredItem = storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection[desiredItemIndex].Item2;
-        }
         else
         {
-            desiredItem = storeDisplayCollection.GetComponent<StoreDisplayCollection>().GetItemForSale(0);
+            desiredItemIndex = Random.Range(1, storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1);
         }
+        */
         Debug.Log("DESIRED ITEM INDEX:" + desiredItemIndex);
+
+        // DELIBERATELY SET TO 1 FOR TESTING
+        //desiredItem = storeDisplayCollection.GetComponent<StoreDisplayCollection>().GetItemForSale(1);
+        desiredItem = storeDisplayCollection.GetComponent<StoreDisplayCollection>().GetItemForSale(desiredItemIndex);
+        //desiredItemID = desiredItem.GetItemID();
+
+        //desiredItemStoreDisplay
+        Debug.Log("DESIRED ITEM INDEX: " + desiredItemIndex + "; DESIRED ITEM NAME: " + desiredItem.GetItemName());
         desiredItem.PrintItemForSale();
         //Debug.Log("Desired item ID: " + Random.Range(-1, storeDisplayCollection.GetComponent<StoreDisplayCollection>().storeCollection.Count - 1));
 
-        // patron budget = 90% - 150%
-        budget = (long)Random.Range((float)desiredItem.basePrice * 0.9f, (float)desiredItem.basePrice * 1.5f);
+        // patron budget = 120% - 150%
+        budget = (long)Random.Range((float)desiredItem.basePrice * 1.25f, (float)desiredItem.basePrice * 1.5f);
     }
 
+    public int GetID()
+    {
+        return id;
+    }
+
+    void OnEnable()
+    {
+
+    }
     private void OnDisable()
     {
+        Debug.Log("Patron.OnDisable()");
         cancellationTokenSource.Cancel();
     }
 
-    // Prompt StoreController to display ItemSaleDisplay and for the player to enter an offer\
-    async Task RequestOfferAsync(CancellationToken cancellationToken)
-    //IEnumerator RequestOffer()
-    //void RequestOffer()
-    {
-        offerReceived = false;
-        Debug.Log("Request Offer");
-
-        // ## Calls StoreController.DisplayOfferPage()
-        if (OnRequestOffer != null)
-        {
-            //StartCoroutine(OnRequestOffer(this));
-            await (OnRequestOffer(this, cancellationToken));
-            
-            /*
-            while(!offerReceived)
-            {
-                yield return null;
-            }
-            */
-        }
-        Debug.Log("END REQUEST OFFER");
-    }
 
     //NPCPreference RollPreferences(PatronType patronType)
     void RollPreferences(PatronType patronType)
@@ -227,14 +199,78 @@ public class Patron : MonoBehaviour
         //return null;
     }
 
+    public async Task AttemptPurchaseAsync(CancellationToken cancellationToken)
+    //public IEnumerator AttemptPurchase()
+    {
+        Debug.Log("AttemptPurchaseASYNC");
+        Debug.Log(desiredItem);
+        // Always null
+        Debug.Log(desiredItemStoreDisplay);
+        // item already sold to earlier patron
+        if (desiredItem.GetItemCondition() != ItemCondition.InStock)
+        {
+            Debug.Log("SOLD OUT");
+            ChooseItem();
+        }
+        else
+        {
+            //Debug.Log("ELSE");
+            Debug.Log("I want " + desiredItem.itemName);
 
+            // Open sale display
+            //yield return StartCoroutine(RequestOffer());
+            var RequestOfferTask = RequestOfferAsync(cancellationToken);
+            Debug.Log("TASK");
+
+            await RequestOfferTask;
+            Debug.Log("AWAIT");
+            //StartCoroutine(RequestOffer());
+            //RequestOffer();
+
+        }
+
+        /*
+        Debug.Log(gameObject.name);
+        dialogue = "I want to buy this!";
+        ScrollingText scrollingText = gameObject.GetComponentInChildren<ScrollingText>();
+        scrollingText.PrintText(dialogue);
+        */
+        //yield break;
+        Debug.Log("END AttemptPurchaseAsync");
+    }
+
+    // Prompt StoreController to display ItemSaleDisplay and for the player to enter an offer
+    async Task RequestOfferAsync(CancellationToken cancellationToken)
+    //IEnumerator RequestOffer()
+    //void RequestOffer()
+    {
+        offerReceived = false;
+        Debug.Log("Request Offer");
+
+        // ## Calls StoreController.DisplayOfferPage()
+        if (OnRequestOffer != null)
+        {
+            //StartCoroutine(OnRequestOffer(this));
+            
+            await (OnRequestOffer(this, cancellationToken));
+
+            /*
+            while(!offerReceived)
+            {
+                yield return null;
+            }
+            */
+        }
+        Debug.Log("END RequestOfferAsync");
+    }
 
 
     // This function processes the price the player is willing to sell the item for
     // Based on the patron's budget, which is a % of the base price like 120%, the patron will either accept or reject the offer.
     // If the patron rejects there is a chance the patron will walk out the store immediately, or give the player a chance to make another offer.
-    int ProcessOffer(int offer)
+    public int ProcessOffer(int offer)
     {
+        Debug.Log("PATRON PROCESSING OFFER; Budget: $" + budget);
         int leave = 0;
         // choice is the patron's response to the offer
         // 0 = no
@@ -247,7 +283,10 @@ public class Patron : MonoBehaviour
 
         if (offer > budget)
         {
+            choice = 0;
+            leave = 1;
             // 50/50 chance the patron leaves
+            /*
             leave = Random.Range(0, 2);
             if(leave == 1)
             {
@@ -262,6 +301,7 @@ public class Patron : MonoBehaviour
                 choice = 2;
                 return choice;
             }
+            */
         }
         else
         {
@@ -271,8 +311,10 @@ public class Patron : MonoBehaviour
 
             // patron accepts offer
             choice = 1;
-            return choice;
+            leave = 0;
+ 
         }
+        return choice;
     }
 
 
@@ -281,7 +323,14 @@ public class Patron : MonoBehaviour
         //Debug.Log("Patron ID: " + this.id + "; patronType: " + patronType + "; Max Budget: " + budget);
     }
 
+    public void Purchase()
+    {
 
+    }
 
+    public void ProcessPrice()
+    {
+
+    }
 
 }

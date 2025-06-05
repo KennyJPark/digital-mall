@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.UI;
 
 // Provides functionality for interacting with Player's Store Displays
@@ -32,11 +33,8 @@ public class StoreDisplayController : MonoBehaviour
     // ItemSlot/Add Button
     public GameObject itemSlotObject;
 
-    // InventoryCanvas
+    // InventoryWindow
     public GameObject inventoryWindow;
-
-    // InventoryController
-    public GameObject playerInventory;
 
     // InventoryGridController
     public GameObject inventoryGrid;
@@ -112,6 +110,10 @@ public class StoreDisplayController : MonoBehaviour
             removeItemButton.GetComponent<Image>().color = GRAY;
             swapItemButton.GetComponent<Image>().color = GRAY;
         }
+        if(Mall.Instance.Player == null)
+        {
+            Debug.Log("PlayerController.instance == null");
+        }
 
         if (storeDisplayDialog == null)
         {
@@ -154,11 +156,6 @@ public class StoreDisplayController : MonoBehaviour
             }
 
         }
-    }
-
-    void FixedUpdate()
-    {
-
     }
 
     public IEnumerator InteractWithStoreDisplay(StoreDisplay display)
@@ -213,8 +210,7 @@ public class StoreDisplayController : MonoBehaviour
         
         storeDisplayDialog.SetActive(true);
         // Open player's inventory
-        inventoryWindow.SetActive(true);
-        InventoryController.instance.ShowInventory();
+        InventoryController.Instance.ShowInventory();
         if (inventoryGrid != null)
             inventoryGrid.GetComponent<InventoryGridController>().AssignStoreDisplay(currentInteractingStoreDisplay);
         InventoryGridController.OnClicked += SetItemForSale;
@@ -296,7 +292,7 @@ public class StoreDisplayController : MonoBehaviour
                 {
                     // Is the original item id different from the selected item's id? Swap if yes
                     // Else do nothing; 
-                    if (itemForSale.itemID != selectedInventorySlot.GetComponent<InventorySlotController>().itemID)
+                    if (itemForSale.GetItemID() != selectedInventorySlot.GetComponent<InventorySlotController>().itemID)
                     {
                         SwapItem();
                     }
@@ -315,7 +311,7 @@ public class StoreDisplayController : MonoBehaviour
                     currentInteractingStoreDisplay.transform.GetChild(0).GetComponent<SpriteRenderer>().sprite = itemForSaleSprite;
 
                     itemForSaleObj = currentInteractingStoreDisplay.transform.GetChild(currentInteractingStoreDisplay.transform.childCount - 1).gameObject;
-                    playerInventory.GetComponent<InventoryController>().DecrementItem(selectedInventorySlot.GetComponent<InventorySlotController>().itemID);
+                    InventoryController.Instance.DecrementItem(selectedInventorySlot.GetComponent<InventorySlotController>().itemID);
                     removeItemButton.GetComponent<Image>().color = removeItemButtonOriginalColor;
                 }
 
@@ -325,10 +321,15 @@ public class StoreDisplayController : MonoBehaviour
             }
             else
             {
-                if(itemForSale.isEmpty)
+                if(itemForSale.IsEmpty())
                 {
                     itemForSale.PopulateFields(-1);
-                    itemForSale.gameObject.GetComponent<SpriteRenderer>().sprite = null;
+                    if(TryGetComponent<SpriteRenderer>(out SpriteRenderer sprite))
+                    {
+                        sprite = null;
+                    }
+                    
+                    //itemForSale.gameObject.TryGetComponent<SpriteRenderer>().sprite = null;
                     //Debug.Log("Null");
                 }
 
@@ -352,6 +353,7 @@ public class StoreDisplayController : MonoBehaviour
         {
             OnConfirm();
         }
+        
         Debug.Log("End Confirm Changes");
         //yield return null;
 
@@ -374,13 +376,13 @@ public class StoreDisplayController : MonoBehaviour
             //Debug.Log(itemForSale.itemID);
 
             removeItemButton.GetComponent<Image>().color = GRAY;
-            playerInventory.GetComponent<InventoryController>().IncrementItem(currentInteractingStoreDisplay.GetComponentInChildren<ItemForSale>().itemID);
+            InventoryController.Instance.IncrementItem(currentInteractingStoreDisplay.GetComponentInChildren<ItemForSale>().itemID);
             itemForSaleSprite = null;
 
             itemSlotObject.transform.GetChild(0).GetComponent<Image>().overrideSprite = null;
             //inventoryGrid.GetComponent<InventoryGridController>().DeselectItem();
             selectedInventorySlot = null;
-            currentInteractingStoreDisplay.GetComponentInChildren<ItemForSale>().RemoveItem();
+            currentInteractingStoreDisplay.GetComponentInChildren<ItemForSale>().RemoveItemFromDisplay();
         }
         else
         {
@@ -416,8 +418,11 @@ public class StoreDisplayController : MonoBehaviour
     void SwapItem()
     {
         Debug.Log("SwapItem");
-        playerInventory.GetComponent<InventoryController>().IncrementItem(itemForSale.itemID);
-        playerInventory.GetComponent<InventoryController>().DecrementItem(selectedInventorySlot.GetComponent<InventorySlotController>().itemID);
+
+        InventoryController.Instance.IncrementItem(itemForSale.itemID);
+        Debug.Log("Taking Back " + itemForSale.GetItemName());
+        InventoryController.Instance.DecrementItem(selectedInventorySlot.GetComponent<InventorySlotController>().itemID);
+        Debug.Log("Putting in item id:" + selectedInventorySlot.GetComponent<InventorySlotController>());
 
         itemForSale.PopulateFields(selectedInventorySlot.GetComponent<InventorySlotController>().itemID);
         itemForSale.gameObject.GetComponent<SpriteRenderer>().sprite = itemForSale.itemSprite;
@@ -436,21 +441,23 @@ public class StoreDisplayController : MonoBehaviour
     void CancelMenu()
     {
         ResetChanges();
-        InventoryController.instance.CloseInventory();
+        InventoryController.Instance.CloseInventory();
         inventoryWindow.SetActive(false);
         Debug.Log(this + "Cancel");
         storeDisplayDialog.SetActive(false);
         InventoryGridController.OnClicked -= SetItemForSale;
-        playerInstance.ReleasePlayer();
+        Mall.Instance.Player.ReleasePlayer();
+        //playerInstance.ReleasePlayer();
     }
 
     void CloseMenu()
     {
         Debug.Log("CloseMenu");
-        InventoryController.instance.CloseInventory();
-        inventoryWindow.SetActive(false);
+        InventoryController.Instance.CloseInventory();
+        //inventoryWindow.SetActive(false);
         storeDisplayDialog.SetActive(false);
-        playerInstance.ReleasePlayer();
+        Mall.Instance.Player.ReleasePlayer();
+        //playerInstance.ReleasePlayer();
     }
 
     void OnDisable()
@@ -462,7 +469,7 @@ public class StoreDisplayController : MonoBehaviour
 
     void UpdateDisplayList()
     {
-        for(int i = 0; i < storeDisplayList.gameObject.transform.GetChildCount(); ++i)
+        for(int i = 0; i < storeDisplayList.gameObject.transform.childCount; ++i)
         {
             StoreDisplay sd = storeDisplayList.gameObject.transform.GetChild(i).GetComponent<StoreDisplay>();
             if(!sd.isEmpty)

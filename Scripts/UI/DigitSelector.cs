@@ -34,12 +34,12 @@ public class DigitSelector : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        incArrow.onClick.AddListener(IncrementClicked);
-        decArrow.onClick.AddListener(DecrementClicked);
+
     }
 
     public void ChangeSelection(GameObject g)
     {
+        Debug.Log("DigitSelector.ChangeSelection()");
         transform.SetParent(g.transform);
         selectedDigitObj = g;
         selectedDigit = selectedDigitObj.GetComponent<Digit>();
@@ -47,6 +47,7 @@ public class DigitSelector : MonoBehaviour
 
     public void ChangeSelection(Digit d)
     {
+        Debug.Log("DigitSelector.ChangeSelection()");
         transform.SetParent(d.gameObject.transform);
         selectedDigitObj = d.gameObject;
         selectedDigit = selectedDigitObj.GetComponent<Digit>();
@@ -55,7 +56,7 @@ public class DigitSelector : MonoBehaviour
 
     public void IncrementClicked()
     {
-        Debug.Log("IncrementDigit");
+        Debug.Log("IncrementClicked");
         if (OnIncrClick != null)
             OnIncrClick();
         
@@ -63,7 +64,7 @@ public class DigitSelector : MonoBehaviour
 
     public void DecrementClicked()
     {
-        Debug.Log("DecrementDigit");
+        Debug.Log("DecrementClicked");
         if (OnDecrClick != null)
             OnDecrClick();
     }
@@ -77,9 +78,22 @@ public class DigitSelector : MonoBehaviour
         return null;
     }
 
+
+
     public void ShiftSelectedDigit()
     {
 
     }
 
+    void OnEnable()
+    {
+        incArrow.onClick.AddListener(IncrementClicked);
+        decArrow.onClick.AddListener(DecrementClicked);
+    }
+
+    void OnDisable()
+    {
+        incArrow.onClick.RemoveListener(IncrementClicked);
+        decArrow.onClick.RemoveListener(DecrementClicked);
+    }
 }

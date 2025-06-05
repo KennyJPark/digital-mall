@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.EventSystems;
+using System;
 
 public class Digit : MonoBehaviour, IPointerDownHandler
 {
@@ -24,20 +25,24 @@ public class Digit : MonoBehaviour, IPointerDownHandler
     public static event DigitChangeAction OnDigitChange;
 
     public DigitType digitType;
-    
+
 
     //[SerializeField]
     // Set these to serializefield?
-    public int value;
-    public int carry;
-    public int index;
+    [SerializeField]
+    int value;
+    [SerializeField]
+    int carry;
+    [SerializeField]
+    int index;
 
     public int startValue;
 
     bool selected;
+    bool isSet;
 
     public TextMeshProUGUI digitText;
-    public TMP_InputField digitField;
+    //public TMP_InputField digitField;
 
     // When digit is clicked
     public void OnPointerDown(PointerEventData eventData)
@@ -122,18 +127,23 @@ public class Digit : MonoBehaviour, IPointerDownHandler
     void Start()
     {
         carry = 0;
+        //UpdateTextField();
     }
 
     void Awake()
     {
-        UpdateTextField();
+        SetUpDigit();
+        
         //digitField.text = value.ToString();
     }
 
-    void UpdateTextField()
+    public void ClearTextField()
     {
-        Debug.Log("Digit.UpdateTextField()");
-        gameObject.GetComponent<TMP_Text>().text = value.ToString();
+        Debug.Log("Digit.ClearTextField()");
+        //digitText.text = "";
+        gameObject.GetComponent<TMP_Text>().text = "";
+        isSet = false;
+
     }
 
     public int GetCarry()
@@ -144,6 +154,21 @@ public class Digit : MonoBehaviour, IPointerDownHandler
     public int GetIndex()
     {
         return index;
+    }
+
+    public bool IsSet()
+    {
+        return isSet;
+    }
+
+    public int GetTrueValue()
+    {
+        return value * ((int)Math.Pow(10, index));
+    }
+
+    public int GetImplicitValue()
+    {
+        return (int)Math.Pow(10, index);
     }
 
     public int GetValue()
@@ -158,10 +183,19 @@ public class Digit : MonoBehaviour, IPointerDownHandler
 
     public void SetValue(int val)
     {
-        Debug.Log("Digit.SetValue()");
+        // val can't be greater than 9
+        if(val > 9)
+        {
+            return;
+        }
+
+        Debug.Log("Digit: " + index + " .SetValue() to " + val);
         if (val == -1)
         {
-            gameObject.GetComponent<TMP_Text>().text = "";
+            value = 0;
+            digitText.text = "";
+            //gameObject.GetComponent<TMP_Text>().text = "";
+            isSet = false;
         }
         else
         {
@@ -170,6 +204,7 @@ public class Digit : MonoBehaviour, IPointerDownHandler
         }
 
     }
+
 
     public void SetIndex(int i)
     {
@@ -204,4 +239,22 @@ public class Digit : MonoBehaviour, IPointerDownHandler
         }
 
     }
+
+    void SetUpDigit()
+    {
+        if (digitText == null)
+        {
+            Debug.Log("DIGIT INIT");
+            digitText = gameObject.GetComponent<TextMeshProUGUI>();
+        }
+    }
+
+    void UpdateTextField()
+    {
+        Debug.Log("Digit.UpdateTextField()");
+        digitText.text = value.ToString();
+        //gameObject.GetComponent<TMP_Text>().text = value.ToString();
+        isSet = true;
+    }
+
 }

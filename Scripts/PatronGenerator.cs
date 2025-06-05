@@ -28,7 +28,7 @@ public class PatronGenerator : MonoBehaviour
         patronQueue = patronQueueObj.GetComponent<PatronQueue>();
     }
 
-    // Make into coroutine?
+    // Make into coroutine? Make into Async?
     //public IEnumerator GeneratePatrons(int num)
     public void GeneratePatrons(int num)
     {
